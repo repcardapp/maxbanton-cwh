@@ -161,7 +161,7 @@ class CloudWatch extends AbstractProcessingHandler
     /**
      * {@inheritdoc}
      */
-    protected function write(array $record): void
+    protected function write(\Monolog\LogRecord $record): void
     {
         $records = $this->formatRecords($record);
 
@@ -280,10 +280,22 @@ class CloudWatch extends AbstractProcessingHandler
      * @param array $entry
      * @return array
      */
-    private function formatRecords(array $entry): array
+    private function formatRecords(\Monolog\LogRecord $entry): array
     {
-        $entries = str_split($entry['formatted'], self::EVENT_SIZE_LIMIT);
-        $timestamp = $entry['datetime']->format('U.u') * 1000;
+        // Extract the formatted message from the LogRecord
+        $formattedMessage = $entry->formatted;
+
+        // If formattedMessage is not yet defined, format it here (depends on how your formatter works)
+        if (is_null($formattedMessage)) {
+            $formattedMessage = sprintf("[%s] %s: %s", $entry->datetime->format('Y-m-d H:i:s'), $entry->level->name, $entry->message);
+            if (!empty($entry->context)) {
+                $formattedMessage .= ' ' . json_encode($entry->context);
+            }
+        }
+
+        // Split the message into chunks based on EVENT_SIZE_LIMIT
+        $entries = str_split($formattedMessage, self::EVENT_SIZE_LIMIT);
+        $timestamp = $entry->datetime->format('U.u') * 1000;
         $records = [];
 
         foreach ($entries as $entry) {
